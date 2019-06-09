@@ -8,6 +8,7 @@ Installation
 
 ```bash
 pip install outerspace
+jupyter nbextension enable --py widgetsnbextension
 ```
 
 Usage
