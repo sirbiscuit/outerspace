@@ -6,6 +6,8 @@ import ipywidgets as widgets
 import numpy as np
 import sys
 
+import warnings
+
 from bokeh.transform import factor_cmap
 from bokeh.palettes import Category10_10
 from bokeh.models import ColumnDataSource, Label
@@ -313,7 +315,9 @@ def tsne_playground(X, y, steps_between_plotting=30, tooltips = None, additional
             scatter.visible = False
             show_status('Initializing TSNE')
 
-            embedding = tsne.fit(X)
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', r"\nThe keyword argument 'parallel=True' was specified but no transformation for parallel execution was possible.")
+                embedding = tsne.fit(X)
         #     # for interactivity:
         #     while last_id == id:
         #         embedding.optimize(n_iter=10, inplace=True)
