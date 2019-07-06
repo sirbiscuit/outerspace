@@ -3,7 +3,7 @@ outerspace
 
 An interactive widget for Jupyter notebooks to explore the parameters of t-SNE.
 
-<img src="demo.gif" onclick="this.src = this.src + 'sklfjlx;'" />
+<img src="https://github.com/sirbiscuit/outerspace/raw/master/demo.gif" width="716" height="428"/>
 
 Installation
 ------------

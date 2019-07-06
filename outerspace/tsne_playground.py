@@ -1,34 +1,18 @@
-from openTSNE import TSNE, nearest_neighbors
+from openTSNE import nearest_neighbors
 from IPython import display
 import time
 import math
 import ipywidgets as widgets
-import numpy as np
-import sys
-import warnings
-
+from multiprocessing import cpu_count
+from threading import Thread
 from bokeh.transform import factor_cmap
-from bokeh.palettes import Category10_10
+from bokeh.palettes import Category10_10  # TODO: custom palettes
 from bokeh.models import ColumnDataSource, Label
 from bokeh.io import push_notebook, show, output_notebook
 from bokeh.plotting import figure
+from .EmbeddingTask import EmbeddingTask
+
 output_notebook(hide_banner=True)
-
-from multiprocessing import Process, Semaphore, Value, Lock, cpu_count, Pool
-
-from PIL import Image
-from io import BytesIO
-import base64
-
-def array2d_to_html_img(nparr, image_mode='L', resize=None, style=''):
-    img = Image.fromarray(nparr, image_mode)
-    if resize is not None:
-        img = img.resize(resize)
-    bytesio = BytesIO()
-    img.save(bytesio, format='PNG')
-    data = base64.b64encode(bytesio.getvalue()).decode()
-    html = f'<img src="data:image/png;base64,{data}" style="{style}"/>'
-    return html
 
 DEFAULT_TOOLTIPS = [
     ('index', '$index'),
@@ -36,9 +20,10 @@ DEFAULT_TOOLTIPS = [
     ('label', '@label')
 ]
 
+
 def tsne_playground(X, y, advanced_mode=False, autostart=True,
-        steps_between_plotting=None, tooltips = DEFAULT_TOOLTIPS,
-        additional_columns = dict()):
+        steps_between_plotting=None, tooltips=DEFAULT_TOOLTIPS,
+        additional_columns=dict()):
     """ Displays an interactive widget for manipulating parameters of TSNE.
 
     Parameters
@@ -114,8 +99,8 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
     unique_values = set(y)
     factors = [str(e) for e in unique_values]
     source = ColumnDataSource(data=dict(
-        x=X[:,0],
-        y=X[:,1],
+        x=X[:, 0],
+        y=X[:, 1],
         label=[str(e) for e in y],
         **additional_columns))
 
@@ -153,7 +138,7 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
     p.add_layout(status)
 
     # render all widgets
-    selection_style = {'button_width':'100px'}
+    selection_style = {'button_width': '100px'}
     label_style = {'description_width': '100px'}
     advanced_layout = { 'display': 'flex' if advanced_mode else 'none' }
 
@@ -177,17 +162,17 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         step=1,
         description='Learning rate:',
         style=label_style,
-        continuous_update=False) # epsilon
+        continuous_update=False)  # epsilon
     initialization_select = widgets.ToggleButtons(
         value='PCA',
         description='Initialization:',
-        style= dict(**selection_style, **label_style),
+        style=dict(**selection_style, **label_style),
         layout=advanced_layout,
         options=['PCA', 'random'])
     negative_gradient_method_select = widgets.ToggleButtons(
         value='interpolation',
         options=['interpolation', 'barnes-hut'],
-        style= dict(**selection_style, **label_style),
+        style=dict(**selection_style, **label_style),
         layout=advanced_layout,
         description='Gradient method:')
     final_momentum_slider = widgets.FloatSlider(
@@ -204,9 +189,9 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         value="<h3>Nearest neighbors</h3>",
         layout=advanced_layout)
     neighbors_select = widgets.ToggleButtons(
-        value='approx', # exakt = sklearn ball_tree, approx = pynndescent
+        value='approx',  # exakt = sklearn ball_tree, approx = pynndescent
         options=['exact', 'approx'],
-        style= dict(**selection_style, **label_style),
+        style=dict(**selection_style, **label_style),
         layout=advanced_layout,
         description='Method:')
     n_jobs_slider = widgets.IntSlider(
@@ -276,8 +261,8 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         continuous_update=False)
 
     heading5 = widgets.HTML(value="<h3>Stats</h3>")
-    timer = widgets.HTML(description='Speed:', style=label_style)
-    iteration = widgets.HTML(description='Iteration:', style=label_style)
+    speed_text = widgets.HTML(description='Speed:', style=label_style)
+    iteration_text = widgets.HTML(description='Iteration:', style=label_style)
     play_pause_button = widgets.Button(icon='play', layout=widgets.Layout(width='40px', height='40px'))
     stop_button = widgets.Button(icon='stop', layout=widgets.Layout(width='40px', height='40px'))
     player_controls = widgets.HBox([play_pause_button, stop_button])
@@ -307,147 +292,88 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         random_state_slider,
 
         heading5,
-        timer,
-        iteration,
+        speed_text,
+        iteration_text,
         player_controls,
 
         log]
-    controls = widgets.VBox(control_collection, layout={ 'flex': '0 0 350px' })
-    hbox = widgets.HBox([out, controls], layout={ 'width': '100%' })
+    controls = widgets.VBox(control_collection, layout={'flex': '0 0 350px'})
+    hbox = widgets.HBox([out, controls], layout={'width': '100%'})
     display.display(hbox)
 
     with out:
         handle = show(p, notebook_handle=True)
 
-    class EmbeddingTask(Process):
-        def __init__(self, is_paused=False):
-            super().__init__()
-            self.early_exaggeration_iter = 0
-            self.exaggeration_phase = True
-            self._is_paused = is_paused
-            self.pause_lock = Lock()
-            if is_paused:
-                self.pause_lock.acquire()
-
-            # timestamp of last update
-            self.last = time.time()
-            self.last_id = Value('i', 0)
-
-        def callback(self, id, i, error, embedding):
-            # if user paused then this lock can not be aquired (until user clicks play again)
-            with self.pause_lock:
-                if not self.exaggeration_phase:
-                    i = i + self.early_exaggeration_iter
-
-                # stop this tsne run if a new run was started
-                if id < self.last_id.value:
-                    return True
-
-                # update chart
-                if i == 1 or i % steps_between_plotting == 0:
-                    status.visible = False
-                    scatter.visible = True
-
-                    scatter.data_source.data['x'] = embedding[:,0]
-                    scatter.data_source.data['y'] = embedding[:,1]
-                    push_notebook(handle)
-
-                # print stats
-                now = time.time()
-                timer.value = f'{(now - self.last):.3f}s per iteration'
-                iteration.value = str(i)
-                self.last = now
-
-                if self.exaggeration_phase and i == self.early_exaggeration_iter:
-                    self.exaggeration_phase = False
-
-        def run(self):
-            # TODO: atomic
-            self.last_id.value += 1
-            current_id = self.last_id.value
-
-            metric_per_neighbor_method = {
-                'exact': exact_method_metric.value,
-                'approx': approx_method_metric.value
-            }
-
-            tsne = TSNE(initialization=initialization_select.value.lower(),
-                        perplexity=perplexity_slider.value,
-                        learning_rate=learning_rate_slider.value,
-                        negative_gradient_method=negative_gradient_method_select.value.lower(),
-                        final_momentum=final_momentum_slider.value,
-
-                        neighbors=neighbors_select.value.lower(),
-                        n_jobs = n_jobs_slider.value,
-                        metric = metric_per_neighbor_method[neighbors_select.value.lower()],
-
-                        early_exaggeration=early_exaggeration_slider.value,
-                        early_exaggeration_iter=early_exaggeration_iter_slider.value,
-                        initial_momentum=initial_momentum_slider.value,
-
-                        n_components=2,
-                        n_iter=10000,
-                        random_state=random_state_slider.value,
-
-                        callbacks=lambda i, error, embedding: self.callback(current_id, i, error, embedding),
-                        callbacks_every_iters=1)
-
-            self.early_exaggeration_iter = tsne.early_exaggeration_iter
-            self.exaggeration_phase = tsne.early_exaggeration_iter > 0
-
-#             params = tsne.get_params()
-#             for key in ['callbacks', 'callbacks_every_iters', 'n_iter', 'random_state']:
-#                 del params[key]
-#             param_list = '\n'.join([f'{key} = {value}' for key, value in params.items()])
-
-            # the following empty print statement is necessary, because processes
-            # behave ridiculously in jupyter notebooks
-            with self.pause_lock:
-                print2(f' ')
-                scatter.visible = False
-                push_notebook(handle)
-                show_status('Initializing TSNE')
-
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore', r"\nThe keyword argument 'parallel=True' was specified but no transformation for parallel execution was possible.")
-                embedding = tsne.fit(X)
-        #     # for interactivity:
-        #     while last_id == id:
-        #         embedding.optimize(n_iter=10, inplace=True)
-
-        def pause(self):
-            self.pause_lock.acquire()
-            self._is_paused = True
-
-        def resume(self):
-            self.pause_lock.release()
-            self._is_paused = False
-
-        def is_paused(self):
-            return self._is_paused
-
-    process = Process()
+    process = EmbeddingTask(X)
 
     def on_change(_):
         stop_process()
         start_process(is_paused=(play_pause_button.icon == 'play'))
-
-    def print2(msg):
-        with log:
-            display.clear_output()
-            print(msg)
-            sys.stdout.flush()
 
     def show_status(msg):
         status.text = f'⏳ {msg}'
         status.visible = True
         push_notebook(handle)
 
-    def start_process(is_paused = False):
+    def start_process(is_paused=False):
         nonlocal process
         if not process.is_alive():
-            process = EmbeddingTask(is_paused=is_paused)
+            metric_per_neighbor_method = {
+                'exact': exact_method_metric.value,
+                'approx': approx_method_metric.value
+            }
+
+            def update_plot(queue, embedding):
+                last_time = time.time()
+                while True:
+                    values = queue.get()
+                    iteration, exaggeration_phase = values['iteration'], values['exaggeration_phase']
+
+                    # measure speed
+                    now = time.time()
+                    difference = now - last_time
+                    last_time = now
+
+                    speed_text.value = f'{difference:.3f} seconds per iteration'
+                    iteration_text.value = f'{iteration}'
+
+                    # update chart
+                    if iteration == 1 or iteration % steps_between_plotting == 0:
+                        status.visible = False
+                        scatter.visible = True
+
+                        scatter.data_source.data['x'] = embedding[:, 0]
+                        scatter.data_source.data['y'] = embedding[:, 1]
+                        push_notebook(handle)
+
+            scatter.visible = False
+            push_notebook(handle)
+            show_status('Initializing TSNE')
+
+            process = EmbeddingTask(
+                            X=X,
+                            is_paused=is_paused,
+                            initialization=initialization_select.value.lower(),
+                            perplexity=perplexity_slider.value,
+                            learning_rate=learning_rate_slider.value,
+                            negative_gradient_method=negative_gradient_method_select.value.lower(),
+                            final_momentum=final_momentum_slider.value,
+
+                            neighbors=neighbors_select.value.lower(),
+                            n_jobs=n_jobs_slider.value,
+                            metric=metric_per_neighbor_method[neighbors_select.value.lower()],
+
+                            early_exaggeration=early_exaggeration_slider.value,
+                            early_exaggeration_iter=early_exaggeration_iter_slider.value,
+                            initial_momentum=initial_momentum_slider.value,
+
+                            n_components=2,
+                            n_iter=10000,
+                            random_state=random_state_slider.value)
             process.start()
+
+            thread = Thread(target=update_plot, args=(process.queue, process.embedding))
+            thread.start()
 
     def stop_process():
         nonlocal process
