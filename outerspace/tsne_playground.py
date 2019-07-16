@@ -1,10 +1,9 @@
 from openTSNE import nearest_neighbors
 from IPython import display
-import time
 import math
+import numpy as np
 import ipywidgets as widgets
 from multiprocessing import cpu_count
-from threading import Thread
 from bokeh.transform import factor_cmap
 from bokeh.palettes import Category10_10  # TODO: custom palettes
 from bokeh.models import ColumnDataSource, Label
@@ -19,7 +18,6 @@ DEFAULT_TOOLTIPS = [
     ('(x, y)', '($x, $y)'),
     ('label', '@label')
 ]
-
 
 def tsne_playground(X, y, advanced_mode=False, autostart=True,
         steps_between_plotting=None, tooltips=DEFAULT_TOOLTIPS,
@@ -207,14 +205,14 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         value='euclidean',
         options=nearest_neighbors.BallTree.VALID_METRICS,
         style=label_style,
-        layout=advanced_layout,
+        layout=dict(list(advanced_layout.items())+list(dict(display='none').items())),
         description='Metric:'
     )
     approx_method_metric = widgets.Dropdown(
         value='euclidean',
         options=nearest_neighbors.NNDescent.VALID_METRICS.keys(),
         style=label_style,
-        layout=advanced_layout,
+        layout=dict(list(advanced_layout.items())+list(dict(display='flex').items())),
         description='Metric:'
     )
 
@@ -303,11 +301,49 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
 
     with out:
         handle = show(p, notebook_handle=True)
+        
+    #
+    # HELPER METHODS
+    #
+    def get_current_params():
+        metric_per_neighbor_method = {
+            'exact': exact_method_metric.value,
+            'approx': approx_method_metric.value
+        }
+        
+        return dict(initialization=initialization_select.value.lower(),
+                    perplexity=perplexity_slider.value,
+                    learning_rate=learning_rate_slider.value,
+                    negative_gradient_method=negative_gradient_method_select.value.lower(),
+                    final_momentum=final_momentum_slider.value,
 
-    process = EmbeddingTask(X)
+                    neighbors=neighbors_select.value.lower(),
+                    n_jobs=n_jobs_slider.value,
+                    metric=metric_per_neighbor_method[neighbors_select.value.lower()],
+
+                    early_exaggeration=early_exaggeration_slider.value,
+                    early_exaggeration_iter=early_exaggeration_iter_slider.value,
+                    initial_momentum=initial_momentum_slider.value,
+
+                    n_components=2,
+                    n_iter=10000,
+                    random_state=random_state_slider.value)
+    
+    def update_plot(iteration, current_embedding, iteration_duration):
+        speed_text.value = f'{iteration_duration:.3f} seconds per iteration'
+        iteration_text.value = f'{iteration}'
+
+        # update chart
+        if iteration == 1 or iteration % steps_between_plotting == 0:
+            status.visible = False
+            scatter.visible = True
+
+            scatter.data_source.data['x'] = current_embedding[:, 0]
+            scatter.data_source.data['y'] = current_embedding[:, 1]
+            push_notebook(handle)
 
     def on_change(_):
-        stop_process()
+        process.stop()
         start_process(is_paused=(play_pause_button.icon == 'play'))
 
     def show_status(msg):
@@ -316,74 +352,10 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         push_notebook(handle)
 
     def start_process(is_paused=False):
-        nonlocal process
-        if not process.is_alive():
-            metric_per_neighbor_method = {
-                'exact': exact_method_metric.value,
-                'approx': approx_method_metric.value
-            }
-
-            def update_plot(queue, embedding):
-                last_time = time.time()
-                while True:
-                    values = queue.get()
-                    iteration, exaggeration_phase = values['iteration'], values['exaggeration_phase']
-
-                    # measure speed
-                    now = time.time()
-                    difference = now - last_time
-                    last_time = now
-
-                    speed_text.value = f'{difference:.3f} seconds per iteration'
-                    iteration_text.value = f'{iteration}'
-
-                    # update chart
-                    if iteration == 1 or iteration % steps_between_plotting == 0:
-                        status.visible = False
-                        scatter.visible = True
-
-                        scatter.data_source.data['x'] = embedding[:, 0]
-                        scatter.data_source.data['y'] = embedding[:, 1]
-                        push_notebook(handle)
-
-            scatter.visible = False
-            push_notebook(handle)
-            show_status('Initializing TSNE')
-
-            process = EmbeddingTask(
-                            X=X,
-                            is_paused=is_paused,
-                            initialization=initialization_select.value.lower(),
-                            perplexity=perplexity_slider.value,
-                            learning_rate=learning_rate_slider.value,
-                            negative_gradient_method=negative_gradient_method_select.value.lower(),
-                            final_momentum=final_momentum_slider.value,
-
-                            neighbors=neighbors_select.value.lower(),
-                            n_jobs=n_jobs_slider.value,
-                            metric=metric_per_neighbor_method[neighbors_select.value.lower()],
-
-                            early_exaggeration=early_exaggeration_slider.value,
-                            early_exaggeration_iter=early_exaggeration_iter_slider.value,
-                            initial_momentum=initial_momentum_slider.value,
-
-                            n_components=2,
-                            n_iter=10000,
-                            random_state=random_state_slider.value)
-            process.start()
-
-            thread = Thread(target=update_plot, args=(process.queue, process.embedding))
-            thread.start()
-
-    def stop_process():
-        nonlocal process
-        if process.is_alive():
-            process.terminate()
-            process.join()
-
-    for control in control_collection:
-        if type(control) not in [widgets.HTML]:
-            control.observe(on_change, names='value')
+        scatter.visible = False
+        push_notebook(handle)
+        show_status('Initializing TSNE')
+        process.start(is_paused=is_paused, **get_current_params())
 
     def on_change_neighbors(change):
         if change.name == 'value' and advanced_mode:
@@ -394,24 +366,29 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
                 exact_method_metric.layout.display = 'none'
                 approx_method_metric.layout.display = 'flex'
 
-    neighbors_select.observe(on_change_neighbors, names='value')
-    neighbors_select.value = 'exact'
-    neighbors_select.value = 'approx'
-
     def play_pause_click(w):
         if w.icon == 'play':
-            if not process.is_alive():
-                start_process()
-            else:
-                process.resume()
+            process.resume()
             w.icon = 'pause'
         elif w.icon == 'pause':
             process.pause()
             w.icon = 'play'
 
     def stop_button_click(w):
-        stop_process()
+        process.stop()
         play_pause_button.icon = 'play'
+
+        
+    # subscribe to changes of all controls
+    for control in control_collection:
+        if type(control) not in [widgets.HTML]:
+            control.observe(on_change, names='value')
+            
+    # additional
+    neighbors_select.observe(on_change_neighbors, names='value')
+        
+    process = EmbeddingTask(X)
+    process.add_handler(update_plot)
 
     play_pause_button.on_click(play_pause_click)
     stop_button.on_click(stop_button_click)
