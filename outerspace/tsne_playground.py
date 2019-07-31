@@ -1,11 +1,10 @@
 from openTSNE import nearest_neighbors
 from IPython import display
 import math
-import numpy as np
 import ipywidgets as widgets
 from multiprocessing import cpu_count
 from bokeh.transform import factor_cmap
-from bokeh.palettes import Category10_10  # TODO: custom palettes
+from bokeh.palettes import Category10_10, Category20_20, viridis
 from bokeh.models import ColumnDataSource, Label
 from bokeh.io import push_notebook, show, output_notebook
 from bokeh.plotting import figure
@@ -19,9 +18,10 @@ DEFAULT_TOOLTIPS = [
     ('label', '@label')
 ]
 
+
 def tsne_playground(X, y, advanced_mode=False, autostart=True,
-        steps_between_plotting=None, tooltips=DEFAULT_TOOLTIPS,
-        additional_columns=dict()):
+                    steps_between_plotting=None, additional_columns=dict(),
+                    tooltips=DEFAULT_TOOLTIPS, colors=None):
     """ Displays an interactive widget for manipulating parameters of TSNE.
 
     Parameters
@@ -42,24 +42,29 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         specifying None, the number of steps depends on the size of X:
             max(len(X) // 2000, 1)
         The default value is None.
+    additional_columns : dict, each value is an array of shape (n_examples,)
+        Additional data to display in the tooltip. A column named key can be
+        referenced in the tooltips parameter using @key.
     tooltips : array, str or None
         Describes the data that is shown when hovering over a data point. For
-        more information, see `here <https://bokeh.pydata.org/en/latest/docs/user_guide/tools.html#basic-tooltips>`_.
-        Besides of the default variables $index, $x, $sx and so on, the
-        parameter @label (not $label) can be used to refer to the label column
-        that was passed as y to this method. Disable tooltips by setting this
-        parameter to None.
-
-        The default value is:
+        more information, see `here <https://bokeh.pydata.org/en/latest/docs/
+        user_guide/tools.html#basic-tooltips>`_. Besides of the default
+        variables $index, $x, $sx and so on, the parameter @label (not $label)
+        can be used to refer to the label column that was passed as y to this
+        method. Disable tooltips by setting this parameter to None. The default
+        value is:
             [
                 ('index', '$index'),
                 ('(x, y)', '($x, $y)'),
                 ('label', '@label')
             ]
-    additional_columns : dict, each value is an array of shape (n_examples,)
-        Additional data to display in the tooltip. A column named key can be
-        referenced in the tooltips parameter using @key.
-
+    colors : array, str or None
+        Specifies the fill color of the circles in the scatter plot. If array,
+        the labels are randomly assigned to the specified colors. If str, the
+        colors are fetched from a column provided in additional_columns. If
+        None, the colors are chosen from palettes Category10, Category20 or
+        Viridis(n) depending on the number of unique labels. The default value
+        is None.
 
     Examples
     --------
@@ -95,7 +100,24 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         steps_between_plotting = max(len(X) // 2000, 1)
 
     unique_values = set(y)
-    factors = [str(e) for e in unique_values]
+    factors = [str(u) for u in unique_values]
+
+    if colors is None:
+        if len(unique_values) <= 10:
+            color = factor_cmap('label', Category10_10, factors)
+        elif len(unique_values) <= 20:
+            color = factor_cmap('label', Category20_20, factors)
+        else:
+            color = factor_cmap('label', viridis(len(unique_values)), factors)
+    elif type(colors) == list:
+        if len(colors) < len(unique_values):
+            raise ValueError('not enough colors specified')
+        color = factor_cmap('label', colors, factors)
+    elif type(colors) == str:
+        if colors not in additional_columns.keys():
+            raise ValueError(f'the key {colors} does not exist in additional_columns')
+        color = colors
+
     source = ColumnDataSource(data=dict(
         x=X[:, 0],
         y=X[:, 1],
@@ -117,12 +139,13 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         toolbar_location="below",
         tooltips=tooltips
       )
-    p.toolbar.logo = None
+    p.toolbar.logo = None  # remove bokeh logo
+
     scatter = p.scatter(
         source=source,
         x='x',
         y='y',
-        color=factor_cmap('label', Category10_10, factors),
+        color=color,
         legend=False,
         line_width=0,
         alpha=0.8,
@@ -138,10 +161,10 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
     # render all widgets
     selection_style = {'button_width': '100px'}
     label_style = {'description_width': '100px'}
-    advanced_layout = { 'display': 'flex' if advanced_mode else 'none' }
+    advanced_layout = {'display': 'flex' if advanced_mode else 'none'}
 
     out = widgets.Output(
-        layout={ 'flex': '1', 'max_width': '90vh'})
+        layout={'flex': '1', 'max_width': '90vh'})
 
     heading1 = widgets.HTML(
         value="<h3>Basic parameters</h3>")
@@ -301,7 +324,7 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
 
     with out:
         handle = show(p, notebook_handle=True)
-        
+
     #
     # HELPER METHODS
     #
@@ -310,25 +333,26 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
             'exact': exact_method_metric.value,
             'approx': approx_method_metric.value
         }
-        
-        return dict(initialization=initialization_select.value.lower(),
-                    perplexity=perplexity_slider.value,
-                    learning_rate=learning_rate_slider.value,
-                    negative_gradient_method=negative_gradient_method_select.value.lower(),
-                    final_momentum=final_momentum_slider.value,
 
-                    neighbors=neighbors_select.value.lower(),
-                    n_jobs=n_jobs_slider.value,
-                    metric=metric_per_neighbor_method[neighbors_select.value.lower()],
+        return dict(
+            initialization=initialization_select.value.lower(),
+            perplexity=perplexity_slider.value,
+            learning_rate=learning_rate_slider.value,
+            negative_gradient_method=negative_gradient_method_select.value.lower(),
+            final_momentum=final_momentum_slider.value,
 
-                    early_exaggeration=early_exaggeration_slider.value,
-                    early_exaggeration_iter=early_exaggeration_iter_slider.value,
-                    initial_momentum=initial_momentum_slider.value,
+            neighbors=neighbors_select.value.lower(),
+            n_jobs=n_jobs_slider.value,
+            metric=metric_per_neighbor_method[neighbors_select.value.lower()],
 
-                    n_components=2,
-                    n_iter=10000,
-                    random_state=random_state_slider.value)
-    
+            early_exaggeration=early_exaggeration_slider.value,
+            early_exaggeration_iter=early_exaggeration_iter_slider.value,
+            initial_momentum=initial_momentum_slider.value,
+
+            n_components=2,
+            n_iter=10000,
+            random_state=random_state_slider.value)
+
     def update_plot(iteration, current_embedding, iteration_duration):
         speed_text.value = f'{iteration_duration:.3f} seconds per iteration'
         iteration_text.value = f'{iteration}'
@@ -368,7 +392,10 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
 
     def play_pause_click(w):
         if w.icon == 'play':
-            process.resume()
+            if process.is_running and process.is_paused:
+                process.resume()
+            else:
+                start_process(is_paused=False)
             w.icon = 'pause'
         elif w.icon == 'pause':
             process.pause()
@@ -378,15 +405,14 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         process.stop()
         play_pause_button.icon = 'play'
 
-        
     # subscribe to changes of all controls
     for control in control_collection:
         if type(control) not in [widgets.HTML]:
             control.observe(on_change, names='value')
-            
+
     # additional
     neighbors_select.observe(on_change_neighbors, names='value')
-        
+
     process = EmbeddingTask(X)
     process.add_handler(update_plot)
 

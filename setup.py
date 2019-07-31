@@ -14,7 +14,6 @@ setup(
     install_requires=[
         'opentsne~=0.3.8',
         'ipywidgets~=7.4.2',
-        'bokeh~=1.2.0',
-        'sharedmem~=0.3.6'
+        'bokeh~=1.2.0'
     ],
 )
