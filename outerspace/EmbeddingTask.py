@@ -1,57 +1,27 @@
-from openTSNE import TSNE
-from multiprocessing import Process, Semaphore, Lock, Condition, RawArray, RawValue
-import warnings
-import numpy as np
+from multiprocessing import Process, Semaphore, Queue
 import time
 from threading import Thread
+from traitlets import HasTraits, Enum
 
 
 class EmbeddingWorker(Process):
-    def __init__(self, X, is_paused=False, **embedding_args):
+    def __init__(self, queue, X, transformation_method, **embedding_args):
         super().__init__()
-        # self.early_exaggeration_iter = 0
-        self.iteration = RawValue('I')
-        self.iteration.value = 0
-        # self.exaggeration_phase = True
-        self.pause_lock = Semaphore(value=not is_paused)
-        self.render_lock = Lock()
-        self.work_signal = Condition()
+        self.pause_lock = Semaphore(value=True)  # lock is free
         self.embedding_args = embedding_args
         self.X = X
-        self.current_embedding = RawArray('f', len(self.X)*2)
+        self.transformation_method = transformation_method
+        self.queue = queue
 
-    def callback(self, i, error, embedding):
-        # if user paused then this lock can not be acquired
-        # (until user clicks play again)
-        with self.pause_lock, self.render_lock:
-            current_embedding_reshaped = np.frombuffer(self.current_embedding, 'f').reshape(embedding.shape)
-            np.copyto(current_embedding_reshaped, embedding)
-
-            self.iteration.value = i
-
-#             if self.exaggeration_phase:
-#                 self.iteration.value = i
-#             else:
-#                 self.iteration.value = i + self.early_exaggeration_iter
-
-#             if self.exaggeration_phase and i == self.early_exaggeration_iter:
-#                 self.exaggeration_phase = False
-
-            with self.work_signal:
-                self.work_signal.notify_all()
+    def callback(self, command, iteration, payload):
+        # pausing acquires pause_lock and the following code only runs if
+        # pause_lock is free
+        with self.pause_lock:
+            self.queue.put((command, iteration, payload))
 
     def run(self):
-        tsne = TSNE(**self.embedding_args,
-                    min_grad_norm=0,  # never stop
-                    callbacks=self.callback,
-                    callbacks_every_iters=1)
-
-#         self.early_exaggeration_iter = tsne.early_exaggeration_iter
-#         self.exaggeration_phase = tsne.early_exaggeration_iter > 0
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', r"\nThe keyword argument 'parallel=True' was specified but no transformation for parallel execution was possible.")
-            tsne.fit(self.X)
+        self.transformation_method(
+            self.X, None, self.embedding_args, self.callback)
 
     def pause(self):
         self.pause_lock.acquire()
@@ -64,72 +34,84 @@ class EmbeddingWorker(Process):
 
 
 class MonitoringWorker(Thread):
-    def __init__(self, process, callbacks):
+    def __init__(self, queue, callbacks):
         super().__init__()
-        self.process = process
+        self.queue = queue
         self.callbacks = callbacks
 
+    def invoke_callbacks(self, *args, **kwargs):
+        for callback in self.callbacks:
+            callback(*args, **kwargs)
+
     def run(self):
-        process = self.process
         last_time = time.time()
+        last_iteration = 0
         while True:
-            process.work_signal.acquire()
-            process.work_signal.wait()
-            with process.render_lock:
-                # measure speed
+            command, iteration, payload = self.queue.get()
+
+            if command == 'stop':
+                self.invoke_callbacks(command, iteration, payload)
+                break
+
+            # measure speed
+            if iteration > last_iteration:
                 now = time.time()
                 iteration_duration = now - last_time
                 last_time = now
+                self.invoke_callbacks('speed', iteration, iteration_duration)
+            last_iteration = iteration
 
-                # reshape current_embedding
-                current_embedding = np.frombuffer(process.current_embedding, 'f').reshape((len(process.X), 2))
-
-                for callback in self.callbacks:
-                    callback(process.iteration.value, current_embedding, iteration_duration)
+            self.invoke_callbacks(command, iteration, payload)
 
 
-class EmbeddingTask:
-    def __init__(self, X):
+class EmbeddingTask(HasTraits):
+    status = Enum(['idle', 'running', 'paused'], default_value='idle')
+
+    def __init__(self, X, transformation_method):
         super().__init__()
-#         self.early_exaggeration_iter = 0
-#         self.iteration = RawValue('I')
-#         self.iteration.value = 0
-#         self.exaggeration_phase = True
         self.X = X
         self.process = None
         self.callbacks = []
         self.thread = None
-        self.is_running = False
+        self.transformation_method = transformation_method
+        self.queue = Queue(maxsize=2)
 
-    def start(self, is_paused=False, **embedding_args):
-        self.is_running = True
-        if self.process is None:
-            self.process = EmbeddingWorker(self.X, is_paused, **embedding_args)
-            self.thread = MonitoringWorker(self.process, self.callbacks)
-        self.process.start()
-        self.thread.start()
+    def start(self, **embedding_args):
+        if self.status == 'idle':
+            self.process = EmbeddingWorker(
+                self.queue, self.X, self.transformation_method,
+                **embedding_args)
+            self.thread = MonitoringWorker(self.queue, self.callbacks)
+            self.process.start()
+            self.thread.start()
+            self.status = 'running'
 
     def stop(self):
-        if self.process is not None and self.process.is_alive():
+        if self.status in ['running', 'paused']:
+            # terminate process
             self.process.terminate()
             self.process.join()
             self.process = None
-        self.is_running = False
+
+            # terminate thread
+            self.queue.put(('stop', 0, None))
+            self.thread.join()
+            self.thread = None
+
+            self.status = 'idle'
 
     def pause(self):
-        self.process.pause_lock.acquire()
+        if self.status == 'running':
+            self.process.pause_lock.acquire()
+            self.status = 'paused'
 
     def resume(self):
-        if self.process is None:
-            self.start()
-        else:
+        if self.status == 'paused':
             self.process.pause_lock.release()
+            self.status = 'running'
 
     def is_paused(self):
         return not self.process.pause_lock.get_value()
-
-    def is_running(self):
-        return self.is_running
 
     def add_handler(self, callback):
         self.callbacks.append(callback)

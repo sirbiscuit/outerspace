@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='outerspace',
-    version='0.1.0',
+    version='0.2.0',
     description='',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -12,8 +12,9 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-        'opentsne~=0.3.8',
-        'ipywidgets~=7.4.2',
-        'bokeh~=1.2.0'
-    ],
+        'opentsne~=0.3.11',
+        'ipywidgets~=7.5.1',
+        'bokeh~=1.2.0',
+        'umap @ git+https://github.com/sirbiscuit/umap'
+    ]
 )

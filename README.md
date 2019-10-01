@@ -1,16 +1,27 @@
 outerspace
 ==========
 
-An interactive widget for Jupyter notebooks to explore the parameters of t-SNE.
+An interactive widget for Jupyter notebooks to explore the parameters of t-SNE
+or UMAP.
 
-<img src="https://github.com/sirbiscuit/outerspace/raw/master/demo.gif" width="716" height="428"/>
+![outerspace demo](demo.gif)
 
 Installation
 ------------
 
 ```bash
 pip install outerspace
+```
+
+Additionally, if you use `jupyter notebook`:
+```bash
 jupyter nbextension enable --py widgetsnbextension
+```
+
+... or for `jupyter lab`:
+```bash
+jupyter labextension install @jupyter-widgets/jupyterlab-manager
+jupyter labextension install jupyterlab_bokeh
 ```
 
 Usage
