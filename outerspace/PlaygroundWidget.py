@@ -106,6 +106,7 @@ class PlaygroundWidget:
                 self.show_status(payload)
             elif command == 'start':
                 self.clear_plot()
+                self.widgets._speed.value = 'waiting for first iteration'
 
         self.process = EmbeddingTask(X, transformation_method=self.transformation_method.run_transformation)
         self.process.add_handler(update_plot)
@@ -126,9 +127,9 @@ class PlaygroundWidget:
         parameter_widgets = self.transformation_method.get_widgets()
 
         stats_widgets = create_widgets([
-            dict(name='_stats', type='heading', text='Stats'),
-            dict(name='_speed', type='text', value='Speed:'),
-            dict(name='_iteration', type='text', value='Iteration:'),
+            dict(name='_stats', type='heading', text='Performance'),
+            dict(name='_speed', type='text', description='Speed:'),
+            dict(name='_iteration', type='text', description='Iteration:'),
         ])
 
         player_widgets = create_widgets([
@@ -173,7 +174,7 @@ class PlaygroundWidget:
                     widget.layout.display = 'none'
 
         # compose resulting UI
-        player_container = HBox(list(player_widgets.values()))
+        player_container = HBox(list(player_widgets.values()), layout=Layout(margin='1.33em 0 0 0'))
         all_widgets = list(parameter_widgets.values()) + list(stats_widgets.values()) + [player_container]
         container = VBox(all_widgets, layout={'flex': '0 0 350px'})
 

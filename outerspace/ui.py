@@ -6,12 +6,13 @@ label_style = {'description_width': '100px'}
 
 
 def create_heading(text, **kwargs):
-    return HTML(value=f"<h3>{text}</h3>", **kwargs)
+    return HTML(value=f"<h3 style='margin-block-end: 0'>{text}</h3>", **kwargs)
 
 
 def create_text(**kwargs):
     return HTML(
-        style=label_style)
+        style=label_style,
+        **kwargs)
 
 
 def create_int_slider(**kwargs):
