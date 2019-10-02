@@ -1,16 +1,15 @@
 from openTSNE import TSNE, nearest_neighbors
 from multiprocessing import cpu_count
-from .PlaygroundWidget import PlaygroundWidget
-from .ui import create_widgets
-from umap import UMAP
 import warnings
 from numba import NumbaWarning
 import math
 import numpy as np
-import functools
+from .PlaygroundWidget import PlaygroundWidget
+from .TransformationMethod import TransformationMethod
+from .ui import create_widgets
 
 
-class TSNEPlaygroundWidget(PlaygroundWidget):
+class TSNETransformationMethod(TransformationMethod):
     def get_widgets(self):
         widgets = create_widgets([
             dict(name='_basic_params', type='heading',
@@ -116,7 +115,7 @@ class TSNEPlaygroundWidget(PlaygroundWidget):
             random_state=widgets.random_state.value)
 
     def run_transformation(self, X, y, transformation_params, callback):
-        class inner_callback:
+        class CallbackAdapter:
             def __init__(self, callback, early_exaggeration_iter):
                 self.callback = callback
                 self.exaggeration_phase = early_exaggeration_iter > 0
@@ -130,9 +129,12 @@ class TSNEPlaygroundWidget(PlaygroundWidget):
                 # callback('divergence', iteration, error)
                 self.callback('embedding', iteration, embedding.view(np.ndarray))
 
+        callback_adapter = CallbackAdapter(
+            callback, transformation_params['early_exaggeration_iter'])
+
         tsne = TSNE(**transformation_params,
                     min_grad_norm=0,  # never stop
-                    callbacks=inner_callback(callback, transformation_params['early_exaggeration_iter']),
+                    callbacks=callback_adapter,
                     callbacks_every_iters=1)
 
         with warnings.catch_warnings():
@@ -154,7 +156,7 @@ DEFAULT_TOOLTIPS = [
 ]
 
 
-def umap_playground(X, y, advanced_mode=False, autostart=True,
+def tsne_playground(X, y, advanced_mode=False, autostart=True,
                     plot_every_iters=None, additional_columns=dict(),
                     tooltips=DEFAULT_TOOLTIPS, colors=None):
     """ Displays an interactive widget for manipulating parameters of TSNE.
@@ -229,9 +231,11 @@ def umap_playground(X, y, advanced_mode=False, autostart=True,
                         additional_columns=dict(images=images),
                         tooltips='@images{safe}') # safe = do not escape HTML
     """
-    transformer_widget = TSNEPlaygroundWidget(X, y, advanced_mode, autostart,
-                                              plot_every_iters,
-                                              additional_columns, tooltips,
-                                              colors)
+    transformer_widget = PlaygroundWidget(
+        TSNETransformationMethod(),
+        X, y, advanced_mode, autostart,
+        plot_every_iters,
+        additional_columns, tooltips,
+        colors)
 
     return transformer_widget

@@ -8,18 +8,18 @@ from ipywidgets import HBox, VBox, Output, Layout
 from .EmbeddingTask import EmbeddingTask
 from IPython.display import display
 from .util import objdict
-from abc import ABC, abstractmethod
 
 output_notebook(hide_banner=True)
 
 
-class PlaygroundWidget(ABC):
-    def __init__(self, X, y, advanced_mode, autostart, plot_every_iters,
-                 additional_columns, tooltips, colors):
+class PlaygroundWidget:
+    def __init__(self, transformation_method, X, y, advanced_mode, autostart,
+                 plot_every_iters, additional_columns, tooltips, colors):
         if plot_every_iters is None:
             # TODO: measure unresponsiveness caused by plotting
             plot_every_iters = max(len(X) // 2000, 1)
 
+        self.transformation_method = transformation_method
         self.advanced_mode = advanced_mode
         self.autostart = autostart
 
@@ -43,8 +43,8 @@ class PlaygroundWidget(ABC):
             color = colors
 
         source = ColumnDataSource(data=dict(
-            x=X[:, 0],
-            y=X[:, 1],
+            x=X[:, 0],  # arbitrary
+            y=X[:, 1],  # arbitrary
             label=[str(e) for e in y],
             **additional_columns))
 
@@ -107,7 +107,7 @@ class PlaygroundWidget(ABC):
             elif command == 'start':
                 self.clear_plot()
 
-        self.process = EmbeddingTask(X, transformation_method=self.run_transformation)
+        self.process = EmbeddingTask(X, transformation_method=self.transformation_method.run_transformation)
         self.process.add_handler(update_plot)
 
         def status_changed(e):
@@ -123,17 +123,19 @@ class PlaygroundWidget(ABC):
         self.process.observe(status_changed, names='status')
 
     def create_all_widgets(self):
-        parameter_widgets = self.get_widgets()
+        parameter_widgets = self.transformation_method.get_widgets()
 
         stats_widgets = create_widgets([
             dict(name='_stats', type='heading', text='Stats'),
             dict(name='_speed', type='text', value='Speed:'),
-            dict(name='_iteration', type='text', value='Iteration'),
+            dict(name='_iteration', type='text', value='Iteration:'),
         ])
 
         player_widgets = create_widgets([
-            dict(name='_play_pause', type='button', icon='play', layout=Layout(width='40px', height='40px')),
-            dict(name='_stop', type='button', icon='stop', layout=Layout(width='40px', height='40px')),
+            dict(name='_play_pause', type='button', icon='play',
+                 layout=Layout(width='40px', height='40px')),
+            dict(name='_stop', type='button', icon='stop',
+                 layout=Layout(width='40px', height='40px')),
         ])
 
         all = [parameter_widgets, stats_widgets, player_widgets]
@@ -177,20 +179,8 @@ class PlaygroundWidget(ABC):
 
         return container
 
-    @abstractmethod
-    def get_widgets(self):
-        pass
-
-    @abstractmethod
-    def get_current_params(self):
-        pass
-
-    @abstractmethod
-    def run_transformation(self, X, y, transformation_params, callback):
-        pass
-
     def start(self):
-        self.process.start(**self.get_current_params(self.widgets))
+        self.process.start(**self.transformation_method.get_current_params(self.widgets))
 
     def resume(self):
         self.process.resume()
