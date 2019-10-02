@@ -203,6 +203,12 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         Viridis(n) depending on the number of unique labels. The default value
         is None.
 
+    Returns
+    -------
+    PlaygroundWidget
+        The actual interaction widget that can be rendered in a Jupyter
+        notebook.
+
     Examples
     --------
     Run t-SNE on the digits data set:
