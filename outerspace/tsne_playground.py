@@ -126,8 +126,13 @@ class TSNETransformationMethod(TransformationMethod):
                     iteration += self.early_exaggeration_iter
                 if self.exaggeration_phase and iteration == self.early_exaggeration_iter:
                     self.exaggeration_phase = False
-                # callback('divergence', iteration, error)
-                self.callback('embedding', iteration, embedding.view(np.ndarray))
+
+                self.callback('embedding', iteration, dict(
+                    embedding=embedding.view(np.ndarray),
+                    error_metrics=dict(
+                        kl_divergence=error
+                    )
+                ))
 
         callback_adapter = CallbackAdapter(
             callback, transformation_params['early_exaggeration_iter'])
@@ -139,8 +144,11 @@ class TSNETransformationMethod(TransformationMethod):
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=NumbaWarning)
-            callback('start', 0, None)
-            callback('status', 0, 'Initializing TSNE')
+            callback('start', 0, dict(error_metrics=[
+                dict(name='kl_divergence', label='KL divergence')
+                ])
+            )
+            callback('status', 0, dict(message='Initializing TSNE'))
             tsne.fit(X)
 
         # umap = UMAP(callback=self.callback)

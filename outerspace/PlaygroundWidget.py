@@ -92,23 +92,47 @@ class PlaygroundWidget:
             self.widgets._iteration.value = f'{iteration}'
             push_notebook(self.handle)
 
+            if payload is not None:
+                if 'speed' in payload:
+                    speed = payload['speed']
+                    self.widgets._speed.value = f'{speed:.3f} seconds per iteration'
+                    push_notebook(self.handle)
+
             if command == 'status':
-                self.show_status(payload)
-            elif command == 'speed':
-                self.widgets._speed.value = f'{payload:.3f} seconds per iteration'
-                push_notebook(self.handle)
+                self.show_status(payload['message'])
             elif command == 'embedding':
                 self.hide_status()
                 if iteration == 1 or iteration % plot_every_iters == 0:
-                    embedding = payload
+                    embedding = payload['embedding']
                     self.show_plot(embedding[:, 0], embedding[:, 1])
+
+                    for metric, value in payload['error_metrics'].items():
+                        self.widgets[metric].value = str(value)
             elif command == 'error':
-                self.show_status(payload)
+                self.show_status(payload['message'])
             elif command == 'start':
                 self.clear_plot()
                 self.widgets._speed.value = 'waiting for first iteration'
 
-        self.process = EmbeddingTask(X, transformation_method=self.transformation_method.run_transformation)
+                vbox = self.widgets._error_metrics
+
+                if hasattr(self, 'error_metrics'):
+                    for key in self.error_metrics:
+                        del self.widgets[key]
+
+                metric_widgets = create_widgets([
+                    dict(name=metric['name'], type='text',
+                         description=f"{metric['label']}:")
+                    for metric in payload['error_metrics']
+                ])
+                vbox.children = tuple(metric_widgets.values())
+                self.widgets.update(metric_widgets)
+                self.error_metrics = list(metric_widgets.keys())
+
+        self.process = EmbeddingTask(
+            X,
+            transformation_method=self.transformation_method.run_transformation
+        )
         self.process.add_handler(update_plot)
 
         def status_changed(e):
@@ -130,6 +154,7 @@ class PlaygroundWidget:
             dict(name='_stats', type='heading', text='Performance'),
             dict(name='_speed', type='text', description='Speed:'),
             dict(name='_iteration', type='text', description='Iteration:'),
+            dict(name='_error_metrics', type='vbox')
         ])
 
         player_widgets = create_widgets([

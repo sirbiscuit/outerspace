@@ -1,4 +1,6 @@
-from ipywidgets import HTML, IntSlider, FloatSlider, ToggleButtons, Dropdown, Button
+from ipywidgets import (
+    HTML, IntSlider, FloatSlider, ToggleButtons, Dropdown, Button, VBox
+)
 from .util import objdict
 
 toggle_buttons_style = {'button_width': '100px'}
@@ -46,6 +48,10 @@ def create_button(**kwargs):
     return Button(**kwargs)
 
 
+def create_vbox(**kwargs):
+    return VBox(**kwargs)
+
+
 def create_widget(type, **kwargs):
     mapping = dict(
         heading=create_heading,
@@ -55,6 +61,7 @@ def create_widget(type, **kwargs):
         toggle_buttons=create_toggle_buttons,
         dropdown=create_dropdown,
         button=create_button,
+        vbox=create_vbox,
     )
     widget = mapping[type](**kwargs)
     return widget

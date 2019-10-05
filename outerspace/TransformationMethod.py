@@ -48,9 +48,14 @@ class TransformationMethod(ABC):
             A callback that is intended for providing feedback to the user.
             Multiple different commands are available:
                 * start: the transformation method was initialized and is
-                    running.
+                    running. The payload is expected to be a dict
+                    { error_metrics } where error_metrics is an array of
+                    dicts { name, label }. Each entry creates a widget
+                    with description text "label". The field "name" is an
+                    identifier that will be useful in the "embedding" command.
                 * embedding: a new embedding is available. The payload is a
-                    numpy.ndarray.
+                    dict { embedding, error_metrics } where embedding is a
+                    numpy.ndarray and error_metrics is a dict.
                 * error: an error occured and payload contains the error
                     message.
                 * status: for providing other feedback to the user. The

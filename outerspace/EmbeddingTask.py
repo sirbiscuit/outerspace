@@ -58,7 +58,11 @@ class MonitoringWorker(Thread):
                 now = time.time()
                 iteration_duration = now - last_time
                 last_time = now
-                self.invoke_callbacks('speed', iteration, iteration_duration)
+
+                if payload is None:
+                    payload = {}
+
+                payload['speed'] = iteration_duration
             last_iteration = iteration
 
             self.invoke_callbacks(command, iteration, payload)
