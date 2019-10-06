@@ -106,8 +106,9 @@ class PlaygroundWidget:
                     embedding = payload['embedding']
                     self.show_plot(embedding[:, 0], embedding[:, 1])
 
-                    for metric, value in payload['error_metrics'].items():
-                        self.widgets[metric].value = str(value)
+                    if 'error_metrics' in payload:
+                        for metric, value in payload['error_metrics'].items():
+                            self.widgets[metric].value = str(value)
             elif command == 'error':
                 self.show_status(payload['message'])
             elif command == 'start':
@@ -120,11 +121,16 @@ class PlaygroundWidget:
                     for key in self.error_metrics:
                         del self.widgets[key]
 
+                error_metrics = []
+                if payload is not None and 'error_metrics' in payload:
+                    error_metrics = payload['error_metrics']
+
                 metric_widgets = create_widgets([
                     dict(name=metric['name'], type='text',
                          description=f"{metric['label']}:")
-                    for metric in payload['error_metrics']
+                    for metric in error_metrics
                 ])
+
                 vbox.children = tuple(metric_widgets.values())
                 self.widgets.update(metric_widgets)
                 self.error_metrics = list(metric_widgets.keys())
