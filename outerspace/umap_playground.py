@@ -1,10 +1,8 @@
 from umap import UMAP
-from openTSNE import TSNE, nearest_neighbors
-from multiprocessing import cpu_count
+from umap.umap_ import find_ab_params
+from umap.distances import named_distances
 import warnings
 from numba import NumbaWarning
-import math
-import numpy as np
 from .PlaygroundWidget import PlaygroundWidget
 from .TransformationMethod import TransformationMethod
 from .ui import create_widgets
@@ -12,108 +10,151 @@ from .ui import create_widgets
 
 class UMAPTransformationMethod(TransformationMethod):
     def get_widgets(self):
+        default_spread = 1
+        default_min_dist = 0.1
+
+        default_a, default_b = find_ab_params(default_spread, default_min_dist)
+
+        metrics = sorted(named_distances.keys())
+        target_metrics = sorted(metrics + ['categorical'])
+
         widgets = create_widgets([
             dict(name='_basic_params', type='heading',
                  text='Basic parameters'),
-            dict(name='perplexity', type='int_slider',
-                 description='Perplexity:', min=2, max=100, step=1, value=30),
-            dict(name='learning_rate', type='int_slider',
+            dict(name='n_neighbors', type='int_slider',
+                 description='# Neighbors:', min=1, max=100, step=1, value=15),
+            dict(name='parameter_control', type='toggle_buttons',
+                 description='Parameter control:',
+                 options=['basic', 'advanced'],
+                 value='basic'),
+            dict(name='min_dist', type='float_slider',
+                 description='Minimum distance:', min=0.01, max=100, step=0.1,
+                 value=default_min_dist),
+            dict(name='spread', type='float_slider',
+                 description='Spread:', min=0.1, max=100, step=0.1,
+                 value=default_spread),
+            dict(name='a', type='float_slider',
+                 description='Parameter a:', min=0.1, max=100, step=0.1,
+                 value=default_a),
+            dict(name='b', type='float_slider',
+                 description='Parameter b:', min=0.1, max=100, step=0.1,
+                 value=default_b),
+            dict(name='init', type='toggle_buttons',
+                 description='Initialization:', options=['spectral', 'random'],
+                 value='spectral'),
+            dict(name='learning_rate', type='float_slider',
                  description='Learning rate:', min=1, max=1000, step=1,
-                 value=200),
-            dict(name='initialization', type='toggle_buttons',
-                 description='Initialization:', options=['PCA', 'random'],
-                 value='PCA'),
-            dict(name='negative_gradient_method', type='toggle_buttons',
-                 description='Gradient method:',
-                 options=['interpolation', 'barnes-hut'],
-                 value='interpolation'),
-            dict(name='final_momentum', type='float_slider',
-                 description='Momentum:', min=0, max=1, step=0.05, value=0.8),
+                 value=1),
+            dict(name='repulsion_strength', type='float_slider',
+                 description='Repulsion_strength:', min=0.1, max=100, step=0.1,
+                 value=1),
+            dict(name='negative_sample_rate', type='int_slider',
+                 description='Negative sample rate:', min=1, max=100, step=1,
+                 value=5),
 
-            dict(name='_nearest_neighbors', type='heading',
-                 text='Nearest neighbors'),
-            dict(name='neighbors_method', type='toggle_buttons',
-                 description='Method:', options=['exact', 'approx'],
-                 value='approx'),
-            dict(name='n_jobs', type='int_slider', description='Num jobs:',
-                 min=1, max=cpu_count(), step=1,
-                 value=math.ceil(cpu_count()/4)),
-            dict(name='exact_method_metric', type='dropdown',
-                 description='Metric:',
-                 options=nearest_neighbors.BallTree.VALID_METRICS,
+            dict(name='_simplical_set_construction', type='heading',
+                 text='Simplical set construction'),
+            dict(name='metric', type='dropdown',
+                 description='Metric:', options=metrics,
                  value='euclidean'),
-            dict(name='approx_method_metric', type='dropdown',
-                 description='Metric:',
-                 options=nearest_neighbors.NNDescent.VALID_METRICS,
-                 value='euclidean'),
+            dict(name='angular_rp_forest', type='toggle_buttons',
+                 description='Angular random projection forest:',
+                 options=['yes', 'no'],
+                 value='no'),
+            dict(name='set_op_mix_ratio', type='float_slider',
+                 description='Set operation mix ratio:', min=0, max=1,
+                 step=0.05,
+                 value=1),
+            dict(name='local_connectivity', type='int_slider',
+                 description='Local connectivity:', min=1, max=100, step=1,
+                 value=1),
+            dict(name='target_n_neighbors', type='int_slider',
+                 description='# Neighbors (target):', min=-1, max=100, step=1,
+                 value=-1),
+            dict(name='target_metric', type='dropdown',
+                 description='Target metric:', options=target_metrics,
+                 value='categorical'),
+            dict(name='target_weight', type='float_slider',
+                 description='Target weight', min=0, max=1, step=0.05,
+                 value=1),
 
-            dict(name='_early_exaggeration_phase', type='heading',
-                 text='Early exaggeration phase'),
-            dict(name='early_exaggeration_iter', type='int_slider',
-                 description='Number of steps:', min=0, max=1000, step=10,
-                 value=250),
-            dict(name='early_exaggeration', type='int_slider',
-                 description='Exagg factor:', min=0, max=100, step=1,
-                 value=12),
-            dict(name='initial_momentum', type='float_slider',
-                 description='Momentum:', min=0, max=1, step=0.05, value=0.5),
-
-            dict(name='_other_settings', type='heading', text='Other'),
+            dict(name='_other_settings', type='heading',
+                 text='Other settings'),
             dict(name='random_state', type='int_slider',
-                 description='Random state', min=0, max=65000, step=1,
+                 description='Random state:', min=0, max=65000, step=1,
                  value=2506),
+
+            # # only for transform / fit_transform:
+            # dict(name='transform_seed', type='int_slider',
+            #      description='Transform seed:', min=0, max=65000, step=1,
+            #      value=42),
+            # dict(name='transform_queue_size', type='float_slider',
+            #      description='Repulsion_strength:', min=0.1, max=100, step=0.1,
+            #      value=4),
         ])
 
         #
         # tag widgets as advanced
         #
-        basic = ['_basic_params', 'perplexity', 'learning_rate',
-                 '_early_exaggeration_phase', 'early_exaggeration_iter']
+        basic = ['_basic_params', 'n_neighbors', 'min_dist']
         for name, widget in widgets.items():
             widget.advanced = (name not in basic)
 
         #
         # additional behaviour
         #
-        def on_change_neighbors(change):
+        def on_change_parameter_control(change):
             if change.name == 'value':
-                if change.new == 'exact':
-                    widgets.exact_method_metric.layout.display = 'flex'
-                    widgets.approx_method_metric.layout.display = 'none'
+                if change.new == 'basic':
+                    widgets.min_dist.layout.display = 'flex'
+                    widgets.spread.layout.display = 'flex'
+                    widgets.a.layout.display = 'none'
+                    widgets.b.layout.display = 'none'
                 else:
-                    widgets.exact_method_metric.layout.display = 'none'
-                    widgets.approx_method_metric.layout.display = 'flex'
-        widgets.neighbors_method.observe(on_change_neighbors, names='value')
+                    widgets.min_dist.layout.display = 'none'
+                    widgets.spread.layout.display = 'none'
+                    widgets.a.layout.display = 'flex'
+                    widgets.b.layout.display = 'flex'
+        widgets.parameter_control.observe(on_change_parameter_control,
+                                          names='value')
         # change the value once to trigger change handler
-        widgets.neighbors_method.value = 'exact'
-        widgets.neighbors_method.value = 'approx'
+        widgets.parameter_control.value = 'advanced'
+        widgets.parameter_control.value = 'basic'
 
         return widgets
 
     def get_current_params(self, widgets):
-        metric_per_neighbor_method = {
-            'exact': widgets.exact_method_metric.value,
-            'approx': widgets.approx_method_metric.value
-        }
+        a = None
+        b = None
+        if widgets.parameter_control.value.lower() == 'advanced':
+            a = widgets.a.value
+            b = widgets.b.value
 
         return dict(
-            initialization=widgets.initialization.value.lower(),
-            perplexity=widgets.perplexity.value,
+            n_neighbors=widgets.n_neighbors.value,
+            min_dist=widgets.min_dist.value,
+            spread=widgets.spread.value,
+            a=a,
+            b=b,
+            init=widgets.init.value,
             learning_rate=widgets.learning_rate.value,
-            negative_gradient_method=widgets.negative_gradient_method.value.lower(),
-            final_momentum=widgets.final_momentum.value,
+            repulsion_strength=widgets.repulsion_strength.value,
+            negative_sample_rate=widgets.negative_sample_rate.value,
 
-            neighbors=widgets.neighbors_method.value.lower(),
-            n_jobs=widgets.n_jobs.value,
-            metric=metric_per_neighbor_method[widgets.neighbors_method.value.lower()],
-
-            early_exaggeration=widgets.early_exaggeration.value,
-            early_exaggeration_iter=widgets.early_exaggeration_iter.value,
-            initial_momentum=widgets.initial_momentum.value,
+            metric=widgets.metric.value.lower(),
+            angular_rp_forest=widgets.angular_rp_forest.value.lower() == 'yes',
+            set_op_mix_ratio=widgets.set_op_mix_ratio.value,
+            local_connectivity=widgets.local_connectivity.value,
+            target_n_neighbors=widgets.target_n_neighbors.value,
+            target_metric=widgets.target_metric.value.lower(),
+            target_weight=widgets.target_weight.value,
 
             n_components=2,
-            n_iter=10000000,  # TODO
-            random_state=widgets.random_state.value)
+            random_state=widgets.random_state.value,
+
+            n_epochs=10000000,  # TODO
+            verbose=False
+            )
 
     def run_transformation(self, X, y, transformation_params, callback):
         class CallbackAdapter:
@@ -127,12 +168,15 @@ class UMAPTransformationMethod(TransformationMethod):
 
         callback_adapter = CallbackAdapter(callback)
 
-        umap = UMAP(callback=callback_adapter)
+        umap = UMAP(callback=callback_adapter, **transformation_params)
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=NumbaWarning)
-            callback('start', 0, None)
-            callback('status', 0, dict(message='Initializing UMAP'))
-            umap.fit(X)
+            try:
+                callback('start', 0, None)
+                callback('status', 0, dict(message='Initializing UMAP'))
+                umap.fit(X, y)
+            except Exception as e:
+                callback('error', 0, dict(message=str(e)))
 
 
 DEFAULT_TOOLTIPS = [

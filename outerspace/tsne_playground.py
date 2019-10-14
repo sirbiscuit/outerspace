@@ -21,7 +21,7 @@ class TSNETransformationMethod(TransformationMethod):
                  value=200),
             dict(name='initialization', type='toggle_buttons',
                  description='Initialization:', options=['PCA', 'random'],
-                 value='PCA'),
+                 value='random'),  # use "random" for better interactivity
             dict(name='negative_gradient_method', type='toggle_buttons',
                  description='Gradient method:',
                  options=['interpolation', 'barnes-hut'],
@@ -145,7 +145,7 @@ class TSNETransformationMethod(TransformationMethod):
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=NumbaWarning)
             callback('start', 0, dict(error_metrics=[
-                dict(name='kl_divergence', label='KL divergence')
+                dict(name='kl_divergence', label='KL divergence:')
                 ])
             )
             callback('status', 0, dict(message='Initializing TSNE'))

@@ -3,11 +3,12 @@ from bokeh.transform import factor_cmap
 from bokeh.palettes import Category10_10, Category20_20, viridis
 from bokeh.models import ColumnDataSource, Label
 from bokeh.plotting import figure
-from .ui import create_widgets
 from ipywidgets import HBox, VBox, Output, Layout
-from .EmbeddingTask import EmbeddingTask
+import time
 from IPython.display import display
+from .EmbeddingTask import EmbeddingTask
 from .util import objdict
+from .ui import create_widgets
 
 output_notebook(hide_banner=True)
 
@@ -88,19 +89,31 @@ class PlaygroundWidget:
         widget_container = self.create_all_widgets()
         self.hbox = HBox([self.out, widget_container], layout={'width': '100%'})
 
+        last_time = time.time()
+        last_iteration = 0
+
         def update_plot(command, iteration, payload):
+            nonlocal last_time, last_iteration
+
             self.widgets._iteration.value = f'{iteration}'
             push_notebook(self.handle)
-
-            if payload is not None:
-                if 'speed' in payload:
-                    speed = payload['speed']
-                    self.widgets._speed.value = f'{speed:.3f} seconds per iteration'
-                    push_notebook(self.handle)
 
             if command == 'status':
                 self.show_status(payload['message'])
             elif command == 'embedding':
+                # measure speed
+                if iteration > last_iteration:
+                    now = time.time()
+                    iteration_duration = (now - last_time) / (iteration - last_iteration)
+                    last_time = now
+
+                    if payload is None:
+                        payload = {}
+
+                    speed = iteration_duration
+                    self.widgets._speed.value = f'{speed:.3f} seconds per iteration'
+                last_iteration = iteration
+
                 self.hide_status()
                 if iteration == 1 or iteration % plot_every_iters == 0:
                     embedding = payload['embedding']
@@ -127,16 +140,19 @@ class PlaygroundWidget:
 
                 metric_widgets = create_widgets([
                     dict(name=metric['name'], type='text',
-                         description=f"{metric['label']}:")
+                         description=metric['label'])
                     for metric in error_metrics
                 ])
 
                 vbox.children = tuple(metric_widgets.values())
                 self.widgets.update(metric_widgets)
                 self.error_metrics = list(metric_widgets.keys())
+            elif command == 'stop':
+                pass
 
         self.process = EmbeddingTask(
             X,
+            y,
             transformation_method=self.transformation_method.run_transformation
         )
         self.process.add_handler(update_plot)
@@ -212,7 +228,8 @@ class PlaygroundWidget:
         return container
 
     def start(self):
-        self.process.start(**self.transformation_method.get_current_params(self.widgets))
+        kwargs = self.transformation_method.get_current_params(self.widgets)
+        self.process.start(**kwargs)
 
     def resume(self):
         self.process.resume()

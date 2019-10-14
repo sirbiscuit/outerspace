@@ -1,9 +1,10 @@
 from ipywidgets import (
-    HTML, IntSlider, FloatSlider, ToggleButtons, Dropdown, Button, VBox
+    HTML, IntSlider, FloatSlider, ToggleButtons, Dropdown, Checkbox, Button,
+    VBox, ToggleButton
 )
 from .util import objdict
 
-toggle_buttons_style = {'button_width': '100px'}
+toggle_buttons_style = {'button_width': '80px'}
 label_style = {'description_width': '100px'}
 
 
@@ -44,6 +45,20 @@ def create_dropdown(**kwargs):
     )
 
 
+def create_checkbox(**kwargs):
+    return Checkbox(
+        **kwargs,
+        style=label_style
+    )
+
+
+def create_toggle_button(**kwargs):
+    return ToggleButton(
+        **kwargs,
+        style=label_style
+    )
+
+
 def create_button(**kwargs):
     return Button(**kwargs)
 
@@ -60,6 +75,8 @@ def create_widget(type, **kwargs):
         float_slider=create_float_slider,
         toggle_buttons=create_toggle_buttons,
         dropdown=create_dropdown,
+        checkbox=create_checkbox,
+        toggle_button=create_toggle_button,
         button=create_button,
         vbox=create_vbox,
     )
