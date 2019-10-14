@@ -12,10 +12,11 @@ jobs:
     - name: Set up Python 3.7
       uses: actions/setup-python@v1
       with:
-        version: 3.7
+        python-version: 3.7
     - name: Build distribution from source
       run: python setup.py sdist
     - name: Publish distribution to TestPyPI
+      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.test_pypi_token }}
