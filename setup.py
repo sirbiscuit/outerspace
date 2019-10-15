@@ -14,7 +14,6 @@ setup(
     install_requires=[
         'opentsne~=0.3.11',
         'ipywidgets~=7.5.1',
-        'bokeh~=1.2.0',
-        'umap @ git+https://github.com/sirbiscuit/umap'
+        'bokeh~=1.2.0'
     ]
 )
