@@ -1,8 +1,7 @@
 outerspace
 ==========
 
-An interactive widget for Jupyter notebooks to explore the parameters of t-SNE
-or UMAP.
+An interactive widget for Jupyter notebooks to explore the parameters of t-SNE.
 
 ![outerspace demo](demo.gif)
 
