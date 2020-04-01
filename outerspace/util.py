@@ -20,13 +20,17 @@ class objdict(OrderedDict):
         else:
             raise AttributeError("No such attribute: " + name)
 
+            
+def pil_to_html_img(pil_img, style=''):
+    bytesio = BytesIO()
+    pil_img.save(bytesio, format='PNG')
+    data = base64.b64encode(bytesio.getvalue()).decode()
+    html = f'<img src="data:image/png;base64,{data}" style="{style}"/>'
+    return html
+            
 
 def array2d_to_html_img(nparr, image_mode='L', resize=None, style=''):
     img = Image.fromarray(nparr, image_mode)
     if resize is not None:
         img = img.resize(resize)
-    bytesio = BytesIO()
-    img.save(bytesio, format='PNG')
-    data = base64.b64encode(bytesio.getvalue()).decode()
-    html = f'<img src="data:image/png;base64,{data}" style="{style}"/>'
-    return html
+    return pil_to_html_img(img, style=style)

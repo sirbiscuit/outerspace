@@ -79,7 +79,7 @@ class PlaygroundWidget:
 
         # status message on top of graph
         self.status_message = Label(x=20, y=20, x_units='screen',
-                                    y_units='screen', text='⏳',
+                                    y_units='screen', text='\N{HOURGLASS}',
                                     render_mode='css', text_font_size='40px')
         self.status_message.visible = False
         self.p.add_layout(self.status_message)
@@ -249,7 +249,7 @@ class PlaygroundWidget:
         self.process.stop()
 
     def show_status(self, msg):
-        self.status_message.text = f'⏳ {msg}'
+        self.status_message.text = f'\N{HOURGLASS} {msg}'
         self.status_message.visible = True
         push_notebook(self.handle)
 
