@@ -151,11 +151,6 @@ class TSNETransformationMethod(TransformationMethod):
             callback('status', 0, dict(message='Initializing TSNE'))
             tsne.fit(X)
 
-        # umap = UMAP(callback=self.callback)
-        # with warnings.catch_warnings():
-        #     warnings.filterwarnings('ignore', category=NumbaWarning)
-        #     umap.fit(self.X)
-
 
 DEFAULT_TOOLTIPS = [
     ('index', '$index'),

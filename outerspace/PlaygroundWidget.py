@@ -2,7 +2,7 @@ from bokeh.io import output_notebook, push_notebook, show
 from bokeh.transform import factor_cmap
 from bokeh.palettes import Category10_10, Category20_20, viridis
 from bokeh.models import ColumnDataSource, Label
-from bokeh.plotting import figure
+from bokeh.plotting import figure, output_file, save
 from ipywidgets import HBox, VBox, Output, Layout
 import time
 from IPython.display import display
@@ -266,6 +266,10 @@ class PlaygroundWidget:
     def clear_plot(self):
         self.scatter.visible = False
         push_notebook(self.handle)
+        
+    def save_plot(self, path):
+        output_file(path)
+        save(self.p)
 
     def _ipython_display_(self, **kwargs):
         display(self.hbox)
