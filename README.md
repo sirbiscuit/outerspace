@@ -24,6 +24,7 @@ jupyter labextension install @jupyter-widgets/jupyterlab-manager
 jupyter labextension install @bokeh/jupyter_bokeh
 ```
 
+
 Usage
 -----
 
@@ -58,6 +59,7 @@ tsne_playground(X, y,
                 additional_columns=dict(images=images),
                 tooltips='@images{safe}') # safe = don't escape HTML
 ```
+
 
 Further examples
 ----------------
