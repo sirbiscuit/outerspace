@@ -64,7 +64,7 @@ Further examples
 
 Evaluating the chemical space of a set of molecules (with molecule images as tooltip):
 
-<img align="right" width="300px" src="https://github.com/sirbiscuit/outerspace/raw/master/tooltip_molecules.png">
+<img align="right" width="300px" src="tooltip_molecules.png">
 
 ```python
 from outerspace import tsne_playground, pil_to_html_img
