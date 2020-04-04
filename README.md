@@ -3,7 +3,7 @@ outerspace
 
 An interactive widget for Jupyter notebooks to explore the parameters of t-SNE.
 
-![demo](https://raw.githubusercontent.com/sirbiscuit/outerspace/master/demo.gif)
+![demo](https://raw.githubusercontent.com/sirbiscuit/outerspace/master/demo2.gif)
 
 
 Installation
@@ -39,7 +39,7 @@ tsne_playground(X, y)
 
 Show the actual digit images in a tooltip:
 
-<kbd><img align="right" width="300px" src="https://github.com/sirbiscuit/outerspace/raw/master/tooltip_image.png">
+<img align="right" width="300px" src="https://github.com/sirbiscuit/outerspace/raw/master/tooltip_image.png">
 
 ```python
 from outerspace import tsne_playground, array2d_to_html_img
