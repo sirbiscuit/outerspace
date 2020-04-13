@@ -1,6 +1,20 @@
 language: python
 python:
   - "3.6"
+
+jobs:
+  include:
+    - stage: release
+      deploy:
+        provider: script
+        skip_cleanup: true
+        script:
+          # Use nvm to install and use the Node LTS version (nvm is installed on all Travis images)
+          - nvm install lts/*
+          - npx semantic-release
+        on:
+          all_branches: true
+          
 install:
   - pip install .[test]
 script:
