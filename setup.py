@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup, find_packages
-from outerspace.version import __version__
+
+exec(open('outerspace/version.py').read())
 
 setup(
     name='outerspace',
