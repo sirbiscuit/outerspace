@@ -4,7 +4,7 @@
     "@semantic-release/release-notes-generator",
     "@semantic-release/github",
     ["@semantic-release/exec", {
-      "prepareCmd" : "bumpversion --current-version ${lastRelease.version} --new-version ${nextRelease.version} _pseudoarg_"
+      "prepareCmd" : "bumpversion --current-version $(python -c 'from outerspace.version import __version__; print(__version__)') --new-version ${nextRelease.version} _pseudoarg_ outerspace/version.py"
     }]
   ]
 }

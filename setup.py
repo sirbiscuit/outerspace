@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 from setuptools import setup, find_packages
+from outerspace.version import __version__
 
 setup(
     name='outerspace',
-    version='0.2.7',
+    version=__version__,
     description='',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
