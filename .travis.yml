@@ -10,8 +10,8 @@ jobs:
         - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
         - source ~/.nvm/nvm.sh
         - nvm install lts/*
-        - npm install -g @semantic-release/exec
-        - npx semantic-release
+        - npm install -g @semantic-release/exec semantic-release
+        - semantic-release
           
 install:
   - pip install .[test]
