@@ -217,6 +217,9 @@ class PlaygroundWidget:
         
     def save_plot(self, path):
         self._renderer.save_plot(path)
+        
+    def get_embedding_code(self):
+        return self.transformation_method.get_embedding_code(self.widgets)
 
     def _ipython_display_(self, **kwargs):
         display(self.hbox)

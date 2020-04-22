@@ -31,6 +31,17 @@ class TransformationMethod(ABC):
             run_transformation.
         '''
         pass
+    
+    @abstractmethod
+    def get_embedding_code(self, widgets):
+        ''' Returns the Python code that reproduces the current embedding.
+
+        Returns
+        -------
+        str
+            Python code as string.
+        '''
+        pass
 
     @abstractmethod
     def run_transformation(self, X, y, transformation_params, callback):

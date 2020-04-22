@@ -4,6 +4,9 @@ import warnings
 from numba import NumbaWarning
 import math
 import numpy as np
+from textwrap import TextWrapper
+import re
+from IPython.display import Code
 from .PlaygroundWidget import PlaygroundWidget
 from .TransformationMethod import TransformationMethod
 from .ui import create_widgets
@@ -88,6 +91,37 @@ class TSNETransformationMethod(TransformationMethod):
         widgets.neighbors_method.value = 'approx'
 
         return widgets
+    
+    def get_embedding_code(self, widgets):
+        params = self.get_current_params(widgets)
+        params['n_iter'] = int(widgets['_iteration'].value)
+        tsne = TSNE(**params,
+                    min_grad_norm=0)
+        
+        # Since TSNE is a subclass of sklearn's BaseEstimator, repr(tsne)
+        # provides the code to reproduce the resulting embedding. We remove 
+        # whitespace and linebreaks so we can later break the text as we like.
+        expression = repr(tsne)
+        expression = re.sub('\n', '', expression)
+        expression = re.sub(' +', ' ', expression)
+        
+        prefix = 'tsne = '
+        assignment_line = prefix + expression
+        
+        chars_until_params = len(prefix)+len('TSNE(')
+        tw = TextWrapper(subsequent_indent=' '*chars_until_params, 
+                         width=80)
+        assignment_line = tw.fill(assignment_line)
+        
+        code = ('# pip install openTSNE\n'
+                'from openTSNE import TSNE\n'
+                f'{assignment_line}\n'
+                'tsne.fit(X)')
+        
+        # return as IPython.display.Code
+        # -> repr will print the code in fixed width font
+        # -> str will print the actual string containing \n
+        return Code(code)
 
     def get_current_params(self, widgets):
         metric_per_neighbor_method = {
@@ -111,7 +145,6 @@ class TSNETransformationMethod(TransformationMethod):
             initial_momentum=widgets.initial_momentum.value,
 
             n_components=2,
-            n_iter=10000000,  # TODO
             random_state=widgets.random_state.value)
 
     def run_transformation(self, X, y, transformation_params, callback):
@@ -139,6 +172,7 @@ class TSNETransformationMethod(TransformationMethod):
 
         tsne = TSNE(**transformation_params,
                     min_grad_norm=0,  # never stop
+                    n_iter=10000000,  # TODO
                     callbacks=callback_adapter,
                     callbacks_every_iters=1)
 

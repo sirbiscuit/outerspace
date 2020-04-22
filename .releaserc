@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/github",
+    ["@semantic-release/exec", {
+      "prepareCmd" : "bumpversion --current-version ${currentRelease.version} --new-version ${nextRelease.version} _pseudoarg_"
+    }]
+  ]
+}
