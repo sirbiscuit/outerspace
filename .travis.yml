@@ -11,6 +11,7 @@ jobs:
         - source ~/.nvm/nvm.sh
         - nvm install lts/*
         - npm install -g @semantic-release/exec semantic-release
+        - pip install bumpversion
         - semantic-release
           
 install:
