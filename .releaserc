@@ -2,14 +2,22 @@
   "tagFormat": "${version}",
   "plugins": [
     "@semantic-release/commit-analyzer",
+    
     "@semantic-release/release-notes-generator",
+    
     ["@semantic-release/exec", {
       "prepareCmd" : "bumpversion --current-version $(python -c 'from outerspace import __version__; print(__version__)') --new-version ${nextRelease.version} _pseudoarg_ outerspace/version.py"
     }],
+    
     ["@semantic-release/git", {
       "assets": ["outerspace/version.py"],
-      "message": "chore(release): ${nextRelease.version} [skip release]\n\n${nextRelease.notes}"
+      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
     }],
-    "@semantic-release/github"
+    
+    "@semantic-release/github",
+    
+    ["@semantic-release/exec", {
+      "publishCmd" : "pip install twine && python setup.py sdist && twine upload -u sirbiscuit -p $PYPI_TOKEN dist/*"
+    }],
   ]
 }

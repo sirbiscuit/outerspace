@@ -3,7 +3,7 @@ outerspace
 
 An interactive widget for Jupyter notebooks to explore the parameters of t-SNE.
 
-![demo](demo.gif)
+![demo](https://raw.githubusercontent.com/sirbiscuit/outerspace/master/demo.gif)
 
 
 Installation
