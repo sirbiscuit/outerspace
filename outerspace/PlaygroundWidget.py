@@ -11,7 +11,8 @@ from .ui import create_widgets
 
 class PlaygroundWidget:
     def __init__(self, transformation_method, X, y, advanced_mode, autostart,
-                 plot_every_iters, additional_columns, tooltips, colors):
+                 plot_every_iters, additional_columns, tooltips, colors,
+                 initial_embedding_params):
         if plot_every_iters is None:
             # TODO: measure unresponsiveness caused by plotting
             plot_every_iters = max(len(X) // 2000, 1)
@@ -123,6 +124,10 @@ class PlaygroundWidget:
             play_pause_button.icon = status_icon_mapping[new_value]
 
         self.process.observe(status_changed, names='status')
+        
+        if initial_embedding_params is not None:
+            self.transformation_method.set_current_params(self.widgets, 
+                                                          initial_embedding_params)
 
     def create_all_widgets(self):
         parameter_widgets = self.transformation_method.get_widgets()

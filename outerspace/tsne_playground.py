@@ -122,6 +122,10 @@ class TSNETransformationMethod(TransformationMethod):
         # -> repr will print the code in fixed width font
         # -> str will print the actual string containing \n
         return Code(code)
+    
+    def set_current_params(self, widgets, embedding_params):
+        for key, value in embedding_params.items():
+            widgets[key].value = value
 
     def get_current_params(self, widgets):
         metric_per_neighbor_method = {
@@ -195,7 +199,8 @@ DEFAULT_TOOLTIPS = [
 
 def tsne_playground(X, y, advanced_mode=False, autostart=True,
                     plot_every_iters=None, additional_columns=dict(),
-                    tooltips=DEFAULT_TOOLTIPS, colors=None):
+                    tooltips=DEFAULT_TOOLTIPS, colors=None,
+                    initial_embedding_params=None):
     """ Displays an interactive widget for manipulating parameters of TSNE.
 
     Parameters
@@ -239,6 +244,9 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         None, the colors are chosen from palettes Category10, Category20 or
         Viridis(n) depending on the number of unique labels. The default value
         is None.
+        
+    initial_embedding_params : dict
+        The initial parameters of the embedding algorithm.
 
     Returns
     -------
@@ -279,6 +287,6 @@ def tsne_playground(X, y, advanced_mode=False, autostart=True,
         X, y, advanced_mode, autostart,
         plot_every_iters,
         additional_columns, tooltips,
-        colors)
+        colors, initial_embedding_params)
 
     return transformer_widget

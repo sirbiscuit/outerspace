@@ -33,13 +33,28 @@ class TransformationMethod(ABC):
         pass
     
     @abstractmethod
+    def set_current_params(self, widgets, embedding_params):
+        ''' Returns the current parameters of the transformation method from
+        the current state of the widgets.
+
+        Parameters
+        ----------
+        widgets : dict[str, ipywidget]
+            The mapping of parameter names to ipywidgets.
+        embedding_params : dict
+            The parameters for the transformation method.
+        '''
+        pass
+    
+    @abstractmethod
     def get_embedding_code(self, widgets):
         ''' Returns the Python code that reproduces the current embedding.
-
+        
         Returns
         -------
-        str
-            Python code as string.
+        dict
+            The parameters of the transformation method that will be used in
+            run_transformation.
         '''
         pass
 
