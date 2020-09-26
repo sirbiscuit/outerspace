@@ -40,7 +40,7 @@ tsne_playground(X, y)
 
 Show the actual digit images in a tooltip:
 
-<img align="right" width="300px" src="tooltip_image.png">
+<img align="right" width="300px" src="https://raw.githubusercontent.com/sirbiscuit/outerspace/master/tooltip_image.png">
 
 ```python
 from outerspace import tsne_playground, array2d_to_html_img
@@ -66,7 +66,7 @@ Further examples
 
 Evaluating the chemical space of a set of molecules (with molecule images as tooltip):
 
-<img align="right" width="300px" src="tooltip_molecules.png">
+<img align="right" width="300px" src="https://raw.githubusercontent.com/sirbiscuit/outerspace/master/tooltip_molecules.png">
 
 ```python
 from outerspace import tsne_playground, pil_to_html_img
